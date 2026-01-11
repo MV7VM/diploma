@@ -1,6 +1,6 @@
 module github.com/MV7VM/diploma
 
-go 1.25.5
+go 1.24.11
 
 require (
 	github.com/MV7VM/url-shortener v0.0.0-20251212154328-239efb34bb5e
