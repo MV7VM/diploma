@@ -7,6 +7,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/MV7VM/diploma/internal/config"
@@ -69,7 +70,7 @@ func (r *Repository) RegisterUser(ctx context.Context, auth *entities.UserAuth) 
 	err = r.db.QueryRow(ctx, qRegisterUser, auth.Login, auth.Password).Scan(&id)
 	if err != nil {
 		if strings.Contains(err.Error(), "constraint") {
-			return 0, entities.ErrLoginAlreadyInUse
+			return 0, entities.ErrAlreadyInUse
 		}
 
 		return 0, err
@@ -101,6 +102,43 @@ func (r *Repository) LoginUser(ctx context.Context, auth *entities.UserAuth) (id
 	return id, nil
 }
 
+const qUploadOrder = `
+WITH check_order AS (
+    SELECT user_id FROM gophermart.orders WHERE order_number = $1
+),
+insert_order AS (
+    INSERT INTO gophermart.orders (order_number, user_id, status)
+    SELECT $1, $2, 0
+    WHERE NOT EXISTS (SELECT 1 FROM check_order)
+    RETURNING order_number
+)
+SELECT 
+    CASE 
+        WHEN EXISTS (SELECT 1 FROM check_order WHERE user_id = $2) THEN 'own_order'
+        WHEN EXISTS (SELECT 1 FROM check_order WHERE user_id != $2) THEN 'other_order'
+        WHEN EXISTS (SELECT 1 FROM insert_order) THEN 'created'
+        ELSE 'error'
+    END as result`
+
+func (r *Repository) UploadOrder(ctx context.Context, userID int, order string) error {
+	var res string
+	err := r.db.QueryRow(ctx, qUploadOrder, order, userID).Scan(&res)
+	if err != nil {
+		return fmt.Errorf("failed to upload order: %w", err)
+	}
+
+	switch res {
+	case "own_order":
+		return entities.ErrAlreadyInUse
+	case "other_order":
+		return entities.ErrPermissionDenied
+	case "created":
+		return nil
+	default:
+		return fmt.Errorf("unexpected result: %s", res)
+	}
+}
+
 // migrate создает схему и таблицу для хранения URL, если они не существуют.
 // Если tx == nil, операции выполняются напрямую через пул соединений.
 func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
@@ -117,12 +155,22 @@ func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
 		return err
 	}
 
-	// Создаем таблицу urls, если её нет
 	_, err = execFunc(ctx, `
 		CREATE TABLE IF NOT EXISTS gophermart.users (
 			id bigserial PRIMARY KEY, 
 			login TEXT NOT NULL unique, 
 			password TEXT
+		)
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = execFunc(ctx, `
+		CREATE TABLE IF NOT EXISTS gophermart.orders (
+			order_number TEXT PRIMARY KEY, 
+			user_id int references gophermart.users(id),
+			status int                 
 		)
 	`)
 	if err != nil {
