@@ -6,7 +6,10 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/MV7VM/diploma/internal/config"
 	"github.com/MV7VM/diploma/internal/domain/gophermart/entities"
@@ -25,6 +28,7 @@ type Server struct {
 type uc interface {
 	Register(ctx context.Context, creds *entities.UserAuth) (string, error)
 	Login(ctx context.Context, creds *entities.UserAuth) (string, error)
+	UploadOrder(ctx context.Context, userID int, order string) error
 }
 
 // NewServer wires up Gin, logging and use-case dependencies.
@@ -67,7 +71,7 @@ func (s *Server) Register(c *gin.Context) {
 
 	token, err := s.uc.Register(c, usrCred)
 	if err != nil {
-		if errors.Is(err, entities.ErrLoginAlreadyInUse) {
+		if errors.Is(err, entities.ErrAlreadyInUse) {
 			c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
@@ -102,6 +106,84 @@ func (s *Server) Login(c *gin.Context) {
 
 	c.SetCookie("auth", token, 36000, "", "", false, true)
 	c.Header("Authorization", token)
+}
+
+func (s *Server) UploadOrder(c *gin.Context) {
+	body, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "failed to read request body: " + err.Error(),
+		})
+		return
+	}
+
+	num := strings.TrimSpace(string(body))
+	if !validateOrderNumber(num) {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "invalid order number",
+		})
+		return
+	}
+
+	uID := c.GetFloat64("userID")
+	fmt.Println(int(uID))
+
+	err = s.uc.UploadOrder(c, int(c.GetFloat64("userID")), num)
+	switch {
+	case errors.Is(err, entities.ErrAlreadyInUse):
+		c.AbortWithStatus(http.StatusOK)
+		return
+	case errors.Is(err, entities.ErrPermissionDenied):
+		c.AbortWithStatus(http.StatusConflict)
+		return
+	//case errors.Is(err, entities.ErrAlreadyInUse):
+	//	c.AbortWithStatus(http.StatusOK)
+	//	return
+	case err == nil:
+		c.AbortWithStatus(http.StatusAccepted)
+		return
+	default:
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}
+}
+
+func validateOrderNumber(number string) bool {
+	// Удаляем все пробелы и нецифровые символы
+	cleaned := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, number)
+
+	// Проверяем минимальную длину (обычно от 2 цифр)
+	if len(cleaned) < 2 {
+		return false
+	}
+
+	sum := 0
+	isSecond := false
+
+	// Идем по цифрам справа налево
+	for i := len(cleaned) - 1; i >= 0; i-- {
+		digit, err := strconv.Atoi(string(cleaned[i]))
+		if err != nil {
+			return false // Если есть нецифровые символы
+		}
+
+		if isSecond {
+			digit = digit * 2
+			if digit > 9 {
+				digit = digit - 9
+			}
+		}
+
+		sum += digit
+		isSecond = !isSecond
+	}
+
+	// Если сумма делится на 10 без остатка - номер валиден
+	return sum%10 == 0
 }
 
 //

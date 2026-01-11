@@ -27,6 +27,7 @@ type Usecase struct {
 type repo interface {
 	RegisterUser(ctx context.Context, auth *entities.UserAuth) (int, error)
 	LoginUser(ctx context.Context, auth *entities.UserAuth) (int, error)
+	UploadOrder(ctx context.Context, userID int, order string) error
 }
 
 func NewUsecase(cfg *config.Model, l *zap.Logger, repo *postgres.Repository) (*Usecase, error) {
@@ -67,6 +68,16 @@ func (u *Usecase) Login(ctx context.Context, creds *entities.UserAuth) (string, 
 	}
 
 	return token, nil
+}
+
+func (u *Usecase) UploadOrder(ctx context.Context, userID int, order string) error {
+	err := u.repo.UploadOrder(ctx, userID, order)
+	if err != nil {
+		u.log.Error("failed to upload order", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (u *Usecase) createToken(userID int) (string, error) {

@@ -9,8 +9,8 @@ func (s *Server) createController() {
 	userGroup.POST("/register", s.Register)
 	userGroup.POST("/login", s.Login)
 
-	//AuthUserGroup := userGroup.Use(s.withLogger).Use(s.auth)
-	//AuthUserGroup.GET("/orders", s.Register)
+	AuthUserGroup := userGroup.Use(s.withLogger).Use(s.auth)
+	AuthUserGroup.POST("/orders", s.UploadOrder)
 	//AuthUserGroup.GET("/balance", s.Ping)
 	//AuthUserGroup.POST("/withdraw", s.CreateShortURLByBody)
 	//AuthUserGroup.POST("/withdrawals", s.BatchURL)

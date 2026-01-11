@@ -1,7 +1,10 @@
 package entities
 
-const ErrLoginAlreadyInUse MyError = "login already in use"
-const ErrWrongCredentials MyError = "incorrect login or password"
+const (
+	ErrAlreadyInUse     MyError = "already in use"
+	ErrWrongCredentials MyError = "incorrect login or password"
+	ErrPermissionDenied MyError = "permission denied"
+)
 
 type MyError string
 
