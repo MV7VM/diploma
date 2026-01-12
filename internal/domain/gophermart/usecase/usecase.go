@@ -28,7 +28,7 @@ type repo interface {
 	RegisterUser(ctx context.Context, auth *entities.UserAuth) (int, error)
 	LoginUser(ctx context.Context, auth *entities.UserAuth) (int, error)
 	UploadOrder(ctx context.Context, userID int, order string) error
-	GetOrders(ctx context.Context) ([]entities.Order, error)
+	GetOrders(ctx context.Context, userID int) ([]entities.Order, error)
 }
 
 func NewUsecase(cfg *config.Model, l *zap.Logger, repo *postgres.Repository) (*Usecase, error) {
@@ -81,8 +81,8 @@ func (u *Usecase) UploadOrder(ctx context.Context, userID int, order string) err
 	return nil
 }
 
-func (u *Usecase) GetOrders(ctx context.Context) ([]entities.Order, error) {
-	orders, err := u.repo.GetOrders(ctx)
+func (u *Usecase) GetOrders(ctx context.Context, userID int) ([]entities.Order, error) {
+	orders, err := u.repo.GetOrders(ctx, userID)
 	if err != nil {
 		u.log.Error("failed to fetch orders", zap.Error(err))
 		return nil, err

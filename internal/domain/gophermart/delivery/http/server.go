@@ -29,7 +29,7 @@ type uc interface {
 	Register(ctx context.Context, creds *entities.UserAuth) (string, error)
 	Login(ctx context.Context, creds *entities.UserAuth) (string, error)
 	UploadOrder(ctx context.Context, userID int, order string) error
-	GetOrders(ctx context.Context) ([]entities.Order, error)
+	GetOrders(ctx context.Context, userID int) ([]entities.Order, error)
 }
 
 // NewServer wires up Gin, logging and use-case dependencies.
@@ -149,7 +149,7 @@ func (s *Server) UploadOrder(c *gin.Context) {
 }
 
 func (s *Server) GetOrders(c *gin.Context) {
-	orders, err := s.uc.GetOrders(c)
+	orders, err := s.uc.GetOrders(c, int(c.GetFloat64("userID")))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

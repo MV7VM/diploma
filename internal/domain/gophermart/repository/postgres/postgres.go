@@ -145,10 +145,11 @@ select
 from 
     gophermart.orders 
   left join 
-    gophermart.order_status os on orders.status = os.id`
+    gophermart.order_status os on orders.status = os.id
+where user_id = $1`
 
-func (r *Repository) GetOrders(ctx context.Context) ([]entities.Order, error) {
-	rows, err := r.db.Query(ctx, qGetOrder)
+func (r *Repository) GetOrders(ctx context.Context, userID int) ([]entities.Order, error) {
+	rows, err := r.db.Query(ctx, qGetOrder, userID)
 	if err != nil {
 		return nil, err
 	}
