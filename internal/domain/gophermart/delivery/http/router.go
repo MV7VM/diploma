@@ -15,5 +15,5 @@ func (s *Server) createController() {
 
 	//AuthUserGroup.GET("/balance", s.Ping)
 	AuthUserGroup.POST("/balance/withdraw", s.UploadWithdraw)
-	AuthUserGroup.POST("/withdrawals", s.GetWithdraw)
+	AuthUserGroup.GET("/withdrawals", s.GetWithdraw)
 }
