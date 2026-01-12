@@ -163,6 +163,18 @@ func (r *Repository) GetOrders(ctx context.Context, userID int) ([]entities.Orde
 	return orders, nil
 }
 
+const qUploadWithdraw = `
+insert into gophermart.withdraw (order_number, sum, user_id) values ($1, $2, $3)`
+
+func (r *Repository) UploadWithdraw(ctx context.Context, withdraw *entities.Withdraw, userID int) error {
+	_, err := r.db.Exec(ctx, qUploadWithdraw, withdraw.OrderNumber, withdraw.Sum, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // migrate создает схему и таблицу для хранения URL, если они не существуют.
 // Если tx == nil, операции выполняются напрямую через пул соединений.
 func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
@@ -218,6 +230,18 @@ func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
 			user_id int references gophermart.users(id),
 			status int references gophermart.order_status(id),
 			accrual int,
+			upload_time timestamptz default now()                
+		)
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = execFunc(ctx, `
+		CREATE TABLE IF NOT EXISTS gophermart.withdraw (
+			order_number TEXT PRIMARY KEY, 
+			user_id int references gophermart.users(id),
+			sum int,
 			upload_time timestamptz default now()                
 		)
 	`)

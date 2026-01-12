@@ -15,3 +15,8 @@ type Order struct {
 	Accrual    *int      `json:"accrual,omitempty" db:"accrual"`
 	UploadedAt time.Time `json:"uploaded_at" db:"upload_time"`
 }
+
+type Withdraw struct {
+	OrderNumber string `json:"order" db:"order_number"`
+	Sum         int    `json:"sum" db:"sum"`
+}

@@ -29,6 +29,7 @@ type repo interface {
 	LoginUser(ctx context.Context, auth *entities.UserAuth) (int, error)
 	UploadOrder(ctx context.Context, userID int, order string) error
 	GetOrders(ctx context.Context, userID int) ([]entities.Order, error)
+	UploadWithdraw(ctx context.Context, withdraw *entities.Withdraw, userID int) error
 }
 
 func NewUsecase(cfg *config.Model, l *zap.Logger, repo *postgres.Repository) (*Usecase, error) {
@@ -89,6 +90,17 @@ func (u *Usecase) GetOrders(ctx context.Context, userID int) ([]entities.Order, 
 	}
 
 	return orders, nil
+}
+
+func (u *Usecase) UploadWithdraw(ctx context.Context, withdraw *entities.Withdraw, userID int) error {
+	//todo check balance > withdraw.Sum
+	err := u.repo.UploadWithdraw(ctx, withdraw, userID)
+	if err != nil {
+		u.log.Error("failed to upload withdraw", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (u *Usecase) createToken(userID int) (string, error) {
