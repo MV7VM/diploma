@@ -30,6 +30,7 @@ type uc interface {
 	Login(ctx context.Context, creds *entities.UserAuth) (string, error)
 	UploadOrder(ctx context.Context, userID int, order string) error
 	GetOrders(ctx context.Context, userID int) ([]entities.Order, error)
+	UploadWithdraw(ctx context.Context, withdraw *entities.Withdraw, userID int) error
 }
 
 // NewServer wires up Gin, logging and use-case dependencies.
@@ -161,6 +162,34 @@ func (s *Server) GetOrders(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, orders)
+}
+
+func (s *Server) UploadWithdraw(c *gin.Context) {
+	var withdraw entities.Withdraw
+	err := c.ShouldBindJSON(&withdraw)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !validateOrderNumber(withdraw.OrderNumber) {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "invalid order number",
+		})
+		return
+	}
+
+	err = s.uc.UploadWithdraw(c, &withdraw, int(c.GetFloat64("userID")))
+	if err != nil {
+		if errors.Is(err, entities.ErrEmptyBalance) {
+			c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{"error": err.Error()})
+			return
+		}
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }
 
 func validateOrderNumber(number string) bool {
