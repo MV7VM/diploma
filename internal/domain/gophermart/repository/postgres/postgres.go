@@ -264,7 +264,7 @@ func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
 		CREATE TABLE IF NOT EXISTS gophermart.withdraw (
 			order_number TEXT PRIMARY KEY, 
 			user_id int references gophermart.users(id),
-			sum int,
+			sum float8,
 			upload_time timestamptz default now()                
 		)
 	`)
