@@ -11,6 +11,7 @@ func (s *Server) createController() {
 
 	AuthUserGroup := userGroup.Use(s.withLogger).Use(s.auth)
 	AuthUserGroup.POST("/orders", s.UploadOrder)
+	AuthUserGroup.GET("/orders", s.GetOrders)
 	//AuthUserGroup.GET("/balance", s.Ping)
 	//AuthUserGroup.POST("/withdraw", s.CreateShortURLByBody)
 	//AuthUserGroup.POST("/withdrawals", s.BatchURL)

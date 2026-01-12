@@ -139,6 +139,29 @@ func (r *Repository) UploadOrder(ctx context.Context, userID int, order string) 
 	}
 }
 
+const qGetOrder = `
+select 
+    order_number, os.name as status, null as accrual, upload_time 
+from 
+    gophermart.orders 
+  left join 
+    gophermart.order_status os on orders.status = os.id`
+
+func (r *Repository) GetOrders(ctx context.Context) ([]entities.Order, error) {
+	rows, err := r.db.Query(ctx, qGetOrder)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orders, err := pgx.CollectRows(rows, pgx.RowToStructByName[entities.Order])
+	if err != nil {
+		return nil, err
+	}
+
+	return orders, nil
+}
+
 // migrate создает схему и таблицу для хранения URL, если они не существуют.
 // Если tx == nil, операции выполняются напрямую через пул соединений.
 func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
@@ -167,10 +190,33 @@ func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
 	}
 
 	_, err = execFunc(ctx, `
+		CREATE TABLE IF NOT EXISTS gophermart.order_status (
+			id bigserial PRIMARY KEY,       
+			name TEXT NOT NULL UNIQUE         
+		)
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = execFunc(ctx, `
+	with insert_statuses as (
+		insert into gophermart.order_status (name) 
+		values ('NEW'),('PROCESSING'),('INVALID'),('PROCESSED') 
+		on conflict (name) do nothing
+		returning id
+	)
+	select count(*) as inserted_count from insert_statuses
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = execFunc(ctx, `
 		CREATE TABLE IF NOT EXISTS gophermart.orders (
 			order_number TEXT PRIMARY KEY, 
 			user_id int references gophermart.users(id),
-			status int                 
+			status int references gophermart.order_status(id),
+			upload_time timestamptz default now()                
 		)
 	`)
 	if err != nil {
