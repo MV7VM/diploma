@@ -191,7 +191,7 @@ func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
 
 	_, err = execFunc(ctx, `
 		CREATE TABLE IF NOT EXISTS gophermart.order_status (
-			id bigserial PRIMARY KEY,       
+			id int PRIMARY KEY,       
 			name TEXT NOT NULL UNIQUE         
 		)
 	`)
@@ -200,8 +200,8 @@ func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
 	}
 	_, err = execFunc(ctx, `
 	with insert_statuses as (
-		insert into gophermart.order_status (name) 
-		values ('NEW'),('PROCESSING'),('INVALID'),('PROCESSED') 
+		insert into gophermart.order_status (id, name) 
+		values (0, 'NEW'),(1, 'PROCESSING'),(2, 'INVALID'),(3, 'PROCESSED') 
 		on conflict (name) do nothing
 		returning id
 	)
@@ -216,6 +216,7 @@ func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
 			order_number TEXT PRIMARY KEY, 
 			user_id int references gophermart.users(id),
 			status int references gophermart.order_status(id),
+			accrual int,
 			upload_time timestamptz default now()                
 		)
 	`)
