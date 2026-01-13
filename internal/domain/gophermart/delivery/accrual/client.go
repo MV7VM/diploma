@@ -60,6 +60,4 @@ func (c *Client) GetAccrual(url, number string) (*entities.Accrual, error) {
 	default:
 		return nil, errors.New(response.Status)
 	}
-
-	return nil, errors.New(response.Status)
 }
