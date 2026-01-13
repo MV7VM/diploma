@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/MV7VM/diploma/internal/config"
+	"github.com/MV7VM/diploma/internal/domain/gophermart/delivery/accrual"
 	"github.com/MV7VM/diploma/internal/domain/gophermart/entities"
 	"github.com/MV7VM/diploma/internal/domain/gophermart/repository/postgres"
 	"github.com/golang-jwt/jwt/v4"
@@ -19,9 +20,11 @@ const (
 )
 
 type Usecase struct {
-	log  *zap.Logger
-	repo repo
-	cfg  *config.Model
+	ctx           context.Context
+	log           *zap.Logger
+	repo          repo
+	cfg           *config.Model
+	accrualClient *accrual.Client
 }
 
 type repo interface {
@@ -31,13 +34,22 @@ type repo interface {
 	GetOrders(ctx context.Context, userID int) ([]entities.Order, error)
 	UploadWithdraw(ctx context.Context, withdraw *entities.Withdraw, userID int) error
 	GetWithdraw(ctx context.Context, userID int) ([]entities.Withdraw, error)
+	UpdateOrder(ctx context.Context, order *entities.Accrual) error
+	GetAllUnProcessedOrders(ctx context.Context) ([]string, error)
 }
 
-func NewUsecase(cfg *config.Model, l *zap.Logger, repo *postgres.Repository) (*Usecase, error) {
-	return &Usecase{cfg: cfg, log: l.Named("usecase"), repo: repo}, nil
+func NewUsecase(ctx context.Context, cfg *config.Model, l *zap.Logger, repo *postgres.Repository, client *accrual.Client) (*Usecase, error) {
+	return &Usecase{
+		ctx:           ctx,
+		cfg:           cfg,
+		log:           l.Named("usecase"),
+		repo:          repo,
+		accrualClient: client,
+	}, nil
 }
 
 func (u *Usecase) OnStart(ctx context.Context) error {
+	go u.accrualDaemon()
 	return nil
 }
 
