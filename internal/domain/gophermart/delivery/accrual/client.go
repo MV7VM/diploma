@@ -3,8 +3,10 @@ package accrual
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/MV7VM/diploma/internal/domain/gophermart/entities"
 )
@@ -15,27 +17,40 @@ type Client struct {
 
 func NewClient() *Client {
 	return &Client{
-		client: &http.Client{},
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
 }
 
 const (
-	getAccuralPath                    = "/api/orders/"
+	getAccrualPath = "/api/orders/"
+)
+
+var (
 	ErrUnknownOrder  entities.MyError = "Unknown Order"
 	ErrToManyRequest entities.MyError = "To Many Request"
 )
 
-func (c *Client) GetAccrual(url, number string) (*entities.Accrual, error) {
-	request, err := http.NewRequest(http.MethodGet, url+getAccuralPath+number, nil)
+// GetAccrual получает информацию о расчёте начислений баллов лояльности для заказа.
+// Возвращает:
+// - *Accrual и nil при успешном ответе (200 OK)
+// - nil и nil при ответе 204 (заказ не зарегистрирован)
+// - nil и ErrToManyRequest при ответе 429 (превышен лимит запросов)
+// - nil и error при других ошибках (500, сетевые ошибки и т.д.)
+func (c *Client) GetAccrual(baseURL, orderNumber string) (*entities.Accrual, error) {
+	url := baseURL + getAccrualPath + orderNumber
+
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
 
 	response, err := c.client.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -53,12 +68,6 @@ func (c *Client) GetAccrual(url, number string) (*entities.Accrual, error) {
 			return nil, err
 		}
 
-		// Проверяем, что статус PROCESSED и возвращаем значения
-		if result.Status == "PROCESSED" {
-			return nil, nil
-		}
-
-		// Если статус не PROCESSED, возвращаем статус и 0
 		return &result, nil
 	case http.StatusNoContent:
 		return nil, nil

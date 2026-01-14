@@ -10,7 +10,7 @@ import (
 )
 
 func (u *Usecase) accrualDaemon() {
-	t := time.NewTicker(time.Second)
+	t := time.NewTicker(time.Millisecond)
 	defer t.Stop()
 	for range t.C {
 		orderNumbers, err := u.repo.GetAllUnProcessedOrders(u.ctx)
