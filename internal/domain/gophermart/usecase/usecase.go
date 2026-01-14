@@ -49,7 +49,7 @@ func NewUsecase(ctx context.Context, cfg *config.Model, l *zap.Logger, repo *pos
 	}, nil
 }
 
-func (u *Usecase) OnStart(ctx context.Context) error {
+func (u *Usecase) OnStart(_ context.Context) error {
 	go u.accrualDaemon()
 	return nil
 }

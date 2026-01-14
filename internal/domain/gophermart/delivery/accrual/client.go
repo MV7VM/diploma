@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -49,6 +50,7 @@ func (c *Client) GetAccrual(baseURL, orderNumber string) (*entities.Accrual, err
 	request.Header.Set("Content-Type", "application/json")
 
 	response, err := c.client.Do(request)
+	log.Println(url, response, err)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
