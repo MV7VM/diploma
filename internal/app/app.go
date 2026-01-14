@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/MV7VM/diploma/internal/config"
+	"github.com/MV7VM/diploma/internal/domain/gophermart/delivery/accrual"
 	"github.com/MV7VM/diploma/internal/domain/gophermart/delivery/http"
 	"github.com/MV7VM/diploma/internal/domain/gophermart/repository"
 	"github.com/MV7VM/diploma/internal/domain/gophermart/usecase"
@@ -23,6 +24,7 @@ func New() *fx.App {
 			config.NewConfig,
 			context.Background,
 			zap.NewDevelopment,
+			accrual.NewClient,
 		),
 		fx.WithLogger(
 			func(log *zap.Logger) fxevent.Logger {

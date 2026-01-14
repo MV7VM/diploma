@@ -10,9 +10,9 @@ import (
 func NewConfig() (*Model, error) {
 	var cfg Model
 
-	flag.StringVar(&cfg.HTTP.Host, "a", "localhost:8080", "address and port to run server")
+	flag.StringVar(&cfg.HTTP.Host, "a", "localhost:8082", "address and port to run server")
 	flag.StringVar(&cfg.Repo.PsqlConnString, "d", "postgresql://postgres:password@localhost:5432/postgres", "file for recovery storage")
-	flag.StringVar(&cfg.AccrualSystem.Host, "r", "localhost:8082", "file for recovery storage")
+	flag.StringVar(&cfg.AccrualSystem.Host, "r", "http://localhost:8080", "file for recovery storage")
 
 	flag.Parse()
 

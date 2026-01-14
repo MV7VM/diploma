@@ -198,6 +198,57 @@ func (r *Repository) GetWithdraw(ctx context.Context, userID int) ([]entities.Wi
 	return withdraw, nil
 }
 
+const qUpdateOrders = `
+update 
+    gophermart.orders 
+set 
+    status = (select id from gophermart.order_status where name = $2), accrual = $3 
+where 
+    order_number = $1`
+
+func (r *Repository) UpdateOrder(ctx context.Context, order *entities.Accrual) error {
+	if order == nil {
+		return nil
+	}
+
+	_, err := r.db.Exec(ctx, qUpdateOrders, order.Order, order.Status, order.Accrual)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+const qGetOrders = `
+select 
+    order_number 
+from 
+    gophermart.orders 
+where 
+    status!=3 and status!=2`
+
+func (r *Repository) GetAllUnProcessedOrders(ctx context.Context) ([]string, error) {
+	rows, err := r.db.Query(ctx, qGetOrders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orders := make([]string, 0, 8)
+	for rows.Next() {
+		order := ""
+
+		err = rows.Scan(&order)
+		if err != nil {
+			return nil, err
+		}
+
+		orders = append(orders, order)
+	}
+
+	return orders, nil
+}
+
 // migrate создает схему и таблицу для хранения URL, если они не существуют.
 // Если tx == nil, операции выполняются напрямую через пул соединений.
 func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
