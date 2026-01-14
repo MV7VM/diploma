@@ -54,7 +54,7 @@ func (c *Client) GetAccrual(url, number string) (*entities.Accrual, error) {
 		// Если статус не PROCESSED, возвращаем статус и 0
 		return &result, nil
 	case http.StatusNoContent:
-		return nil, ErrUnknownOrder
+		return nil, nil
 	case http.StatusTooManyRequests:
 		return nil, ErrToManyRequest
 	default:

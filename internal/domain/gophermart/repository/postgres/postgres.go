@@ -207,6 +207,10 @@ where
     order_number = $1`
 
 func (r *Repository) UpdateOrder(ctx context.Context, order *entities.Accrual) error {
+	if order == nil {
+		return nil
+	}
+
 	_, err := r.db.Exec(ctx, qUpdateOrders, order.Order, order.Status, order.Accrual)
 	if err != nil {
 		return err
