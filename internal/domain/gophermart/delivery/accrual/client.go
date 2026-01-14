@@ -70,6 +70,8 @@ func (c *Client) GetAccrual(baseURL, orderNumber string) (*entities.Accrual, err
 			return nil, err
 		}
 
+		log.Println("result", result)
+
 		return &result, nil
 	case http.StatusNoContent:
 		return nil, nil
