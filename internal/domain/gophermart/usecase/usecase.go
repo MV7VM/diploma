@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 
 	"github.com/MV7VM/diploma/internal/config"
 	"github.com/MV7VM/diploma/internal/domain/gophermart/delivery/accrual"
@@ -87,10 +88,10 @@ func (u *Usecase) Login(ctx context.Context, creds *entities.UserAuth) (string, 
 }
 
 func (u *Usecase) UploadOrder(ctx context.Context, userID int, order string) error {
-	err := u.repo.UploadOrder(ctx, userID, order)
-	if err != nil {
-		u.log.Error("failed to upload order", zap.Error(err))
-		return err
+	repoErr := u.repo.UploadOrder(ctx, userID, order)
+	if repoErr != nil && !errors.Is(repoErr, entities.ErrAlreadyInUse) {
+		u.log.Error("failed to upload order", zap.Error(repoErr))
+		return repoErr
 	}
 
 	orderAccrual, err := u.accrualClient.GetAccrual(u.cfg.AccrualSystem.Host, order)
