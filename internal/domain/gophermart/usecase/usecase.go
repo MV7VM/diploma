@@ -119,8 +119,17 @@ func (u *Usecase) GetOrders(ctx context.Context, userID int) ([]entities.Order, 
 }
 
 func (u *Usecase) UploadWithdraw(ctx context.Context, withdraw *entities.Withdraw, userID int) error {
-	//todo check balance > withdraw.Sum
-	err := u.repo.UploadWithdraw(ctx, withdraw, userID)
+	balance, err := u.GetBalance(ctx, userID)
+	if err != nil {
+		u.log.Error("failed to fetch balance", zap.Error(err))
+		return err
+	}
+
+	if balance.Current < withdraw.Sum {
+		return entities.ErrEmptyBalance
+	}
+
+	err = u.repo.UploadWithdraw(ctx, withdraw, userID)
 	if err != nil {
 		u.log.Error("failed to upload withdraw", zap.Error(err))
 		return err
