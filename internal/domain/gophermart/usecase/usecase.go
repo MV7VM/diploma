@@ -9,6 +9,7 @@ import (
 	"github.com/MV7VM/diploma/internal/domain/gophermart/repository/postgres"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 // -----------------------------------------------------------------------------
@@ -92,6 +93,18 @@ func (u *Usecase) UploadOrder(ctx context.Context, userID int, order string) err
 		return err
 	}
 
+	orderAccrual, err := u.accrualClient.GetAccrual(u.cfg.AccrualSystem.Host, order)
+	if err != nil {
+		u.log.Error("failed to get order accrual", zap.Error(err))
+		return nil
+	}
+
+	err = u.repo.UpdateOrder(ctx, orderAccrual)
+	if err != nil {
+		u.log.Error("failed to update order accrual", zap.Error(err))
+		return nil
+	}
+
 	return nil
 }
 
@@ -124,6 +137,53 @@ func (u *Usecase) GetWithdraw(ctx context.Context, userID int) ([]entities.Withd
 	}
 
 	return withdraws, nil
+}
+
+func (u *Usecase) GetBalance(ctx context.Context, userID int) (res *entities.Balance, err error) {
+	var (
+		withdraws []entities.Withdraw
+		orders    []entities.Order
+	)
+	res = &entities.Balance{}
+
+	eg, ctxErr := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		withdraws, err = u.repo.GetWithdraw(ctxErr, userID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	eg.Go(func() error {
+		orders, err = u.repo.GetOrders(ctxErr, userID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	err = eg.Wait()
+	if err != nil {
+		u.log.Error("failed to fetch balance", zap.Error(err))
+		return nil, err
+	}
+
+	for i := range withdraws {
+		res.Withdrawn += withdraws[i].Sum
+	}
+
+	for i := range orders {
+		if orders[i].Accrual != nil {
+			res.Current += float64(*orders[i].Accrual)
+		}
+	}
+
+	res.Current = res.Current - res.Withdrawn
+
+	return res, nil
 }
 
 func (u *Usecase) createToken(userID int) (string, error) {

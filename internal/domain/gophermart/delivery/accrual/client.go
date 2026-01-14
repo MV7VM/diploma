@@ -26,7 +26,14 @@ const (
 )
 
 func (c *Client) GetAccrual(url, number string) (*entities.Accrual, error) {
-	response, err := c.client.Get(url + getAccuralPath + number)
+	request, err := http.NewRequest(http.MethodGet, url+getAccuralPath+number, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	response, err := c.client.Do(request)
 	if err != nil {
 		return nil, err
 	}
