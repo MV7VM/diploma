@@ -106,7 +106,7 @@ func (u *Usecase) UploadOrder(ctx context.Context, userID int, order string) err
 		return nil
 	}
 
-	return nil
+	return repoErr
 }
 
 func (u *Usecase) GetOrders(ctx context.Context, userID int) ([]entities.Order, error) {
