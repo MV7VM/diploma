@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 
 	"github.com/MV7VM/diploma/internal/config"
 	"github.com/MV7VM/diploma/internal/domain/gophermart/delivery/accrual"
@@ -9,6 +10,7 @@ import (
 	"github.com/MV7VM/diploma/internal/domain/gophermart/repository/postgres"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 // -----------------------------------------------------------------------------
@@ -48,7 +50,7 @@ func NewUsecase(ctx context.Context, cfg *config.Model, l *zap.Logger, repo *pos
 	}, nil
 }
 
-func (u *Usecase) OnStart(ctx context.Context) error {
+func (u *Usecase) OnStart(_ context.Context) error {
 	go u.accrualDaemon()
 	return nil
 }
@@ -86,13 +88,25 @@ func (u *Usecase) Login(ctx context.Context, creds *entities.UserAuth) (string, 
 }
 
 func (u *Usecase) UploadOrder(ctx context.Context, userID int, order string) error {
-	err := u.repo.UploadOrder(ctx, userID, order)
-	if err != nil {
-		u.log.Error("failed to upload order", zap.Error(err))
-		return err
+	repoErr := u.repo.UploadOrder(ctx, userID, order)
+	if repoErr != nil && !errors.Is(repoErr, entities.ErrAlreadyInUse) {
+		u.log.Error("failed to upload order", zap.Error(repoErr))
+		return repoErr
 	}
 
-	return nil
+	orderAccrual, err := u.accrualClient.GetAccrual(u.cfg.AccrualSystem.Host, order)
+	if err != nil {
+		u.log.Error("failed to get order accrual", zap.Error(err))
+		return nil
+	}
+
+	err = u.repo.UpdateOrder(ctx, orderAccrual)
+	if err != nil {
+		u.log.Error("failed to update order accrual", zap.Error(err))
+		return nil
+	}
+
+	return repoErr
 }
 
 func (u *Usecase) GetOrders(ctx context.Context, userID int) ([]entities.Order, error) {
@@ -106,7 +120,16 @@ func (u *Usecase) GetOrders(ctx context.Context, userID int) ([]entities.Order, 
 }
 
 func (u *Usecase) UploadWithdraw(ctx context.Context, withdraw *entities.Withdraw, userID int) error {
-	//todo check balance > withdraw.Sum
+	//balance, err := u.GetBalance(ctx, userID)
+	//if err != nil {
+	//	u.log.Error("failed to fetch balance", zap.Error(err))
+	//	return err
+	//}
+	//
+	//if balance.Current < withdraw.Sum {
+	//	return entities.ErrEmptyBalance
+	//}
+
 	err := u.repo.UploadWithdraw(ctx, withdraw, userID)
 	if err != nil {
 		u.log.Error("failed to upload withdraw", zap.Error(err))
@@ -124,6 +147,53 @@ func (u *Usecase) GetWithdraw(ctx context.Context, userID int) ([]entities.Withd
 	}
 
 	return withdraws, nil
+}
+
+func (u *Usecase) GetBalance(ctx context.Context, userID int) (res *entities.Balance, err error) {
+	var (
+		withdraws []entities.Withdraw
+		orders    []entities.Order
+	)
+	res = &entities.Balance{}
+
+	eg, ctxErr := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		withdraws, err = u.repo.GetWithdraw(ctxErr, userID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	eg.Go(func() error {
+		orders, err = u.repo.GetOrders(ctxErr, userID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	err = eg.Wait()
+	if err != nil {
+		u.log.Error("failed to fetch balance", zap.Error(err))
+		return nil, err
+	}
+
+	for i := range withdraws {
+		res.Withdrawn += withdraws[i].Sum
+	}
+
+	for i := range orders {
+		if orders[i].Accrual != nil {
+			res.Current += float64(*orders[i].Accrual)
+		}
+	}
+
+	res.Current = res.Current - res.Withdrawn
+
+	return res, nil
 }
 
 func (u *Usecase) createToken(userID int) (string, error) {

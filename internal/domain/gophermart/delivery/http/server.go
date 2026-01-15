@@ -32,6 +32,7 @@ type uc interface {
 	GetOrders(ctx context.Context, userID int) ([]entities.Order, error)
 	UploadWithdraw(ctx context.Context, withdraw *entities.Withdraw, userID int) error
 	GetWithdraw(ctx context.Context, userID int) ([]entities.Withdraw, error)
+	GetBalance(ctx context.Context, userID int) (*entities.Balance, error)
 }
 
 // NewServer wires up Gin, logging and use-case dependencies.
@@ -162,6 +163,7 @@ func (s *Server) GetOrders(c *gin.Context) {
 		return
 	}
 
+	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, orders)
 }
 
@@ -191,6 +193,17 @@ func (s *Server) UploadWithdraw(c *gin.Context) {
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func (s *Server) GetBalance(c *gin.Context) {
+	balance, err := s.uc.GetBalance(c, int(c.GetFloat64("userID")))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Type", "application/json")
+	c.JSON(http.StatusOK, balance)
 }
 
 func (s *Server) GetWithdraw(c *gin.Context) {

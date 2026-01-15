@@ -10,9 +10,9 @@ import (
 )
 
 func (u *Usecase) accrualDaemon() {
-	t := time.NewTicker(time.Second)
-	defer t.Stop()
-	for range t.C {
+	//t := time.NewTicker(time.Millisecond)
+	//defer t.Stop()
+	for {
 		orderNumbers, err := u.repo.GetAllUnProcessedOrders(u.ctx)
 		if err != nil {
 			u.log.Error("failed to get unprocessed orders", zap.Error(err))

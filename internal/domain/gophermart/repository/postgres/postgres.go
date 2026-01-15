@@ -141,7 +141,7 @@ func (r *Repository) UploadOrder(ctx context.Context, userID int, order string) 
 
 const qGetOrder = `
 select 
-    order_number, os.name as status, null as accrual, upload_time 
+    order_number, os.name as status, accrual as accrual, upload_time 
 from 
     gophermart.orders 
   left join 
@@ -303,7 +303,7 @@ func (r *Repository) migrate(ctx context.Context, tx pgx.Tx) error {
 			order_number TEXT PRIMARY KEY, 
 			user_id int references gophermart.users(id),
 			status int references gophermart.order_status(id),
-			accrual int,
+			accrual float8,
 			upload_time timestamptz default now()                
 		)
 	`)

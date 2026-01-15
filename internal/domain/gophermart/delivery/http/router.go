@@ -13,7 +13,7 @@ func (s *Server) createController() {
 	AuthUserGroup.POST("/orders", s.UploadOrder)
 	AuthUserGroup.GET("/orders", s.GetOrders)
 
-	//AuthUserGroup.GET("/balance", s.Ping)
+	AuthUserGroup.GET("/balance", s.GetBalance)
 	AuthUserGroup.POST("/balance/withdraw", s.UploadWithdraw)
 	AuthUserGroup.GET("/withdrawals", s.GetWithdraw)
 }
