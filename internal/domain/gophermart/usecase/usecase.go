@@ -26,7 +26,11 @@ type Usecase struct {
 	log           *zap.Logger
 	repo          repo
 	cfg           *config.Model
-	accrualClient *accrual.Client
+	accrualClient AccrualClient
+}
+
+type AccrualClient interface {
+	GetAccrual(baseURL string, orderNumber string) (*entities.Accrual, error)
 }
 
 type repo interface {
