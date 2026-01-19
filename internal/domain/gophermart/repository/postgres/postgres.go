@@ -180,11 +180,11 @@ select
     order_number, sum, upload_time 
 from 
     gophermart.withdraw 
--- where 
---     user_id = $1`
+where 
+    user_id = $1`
 
 func (r *Repository) GetWithdraw(ctx context.Context, userID int) ([]entities.Withdraw, error) {
-	rows, err := r.db.Query(ctx, qGetWithdraw) //, userID)
+	rows, err := r.db.Query(ctx, qGetWithdraw, userID)
 	if err != nil {
 		return nil, err
 	}
